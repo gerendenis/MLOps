@@ -1,0 +1,125 @@
+from sklearn.datasets import make_classification, make_regression
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+
+base_models = {
+    'Regression': RandomForestRegressor,
+    'BinaryClassification': RandomForestClassifier
+}
+
+
+def check_params(model, model_params, model_type):
+    """
+    Checks params in input and model
+
+    Parameters:
+    ----------
+    model : chosen model
+    model_params : dict, input params
+    model_type : str, type of the model ('Regression' | 'BinaryClassification')
+
+    """
+    all_params = model.get_params().keys()
+    bad_params = []
+
+    for param in model_params:
+        if param not in all_params:
+            bad_params.append(param)
+    if len(bad_params) != 0:
+        raise ValueError(f'Unrecognized params for model {model_type}: {bad_params}')
+
+
+def make_data(model_type, n_samples=100, n_features=5):
+    """
+    Generates data for chosen model
+
+    Parameters:
+    ----------
+    model_type : str, type of the model ('Regression' | 'BinaryClassification')
+    n_samples : int, The number of samples.
+    n_features : int, The number of features.
+
+    """
+    features, target = None, None
+    if model_type == 'Regression':
+        features, target = make_regression(n_samples=n_samples,
+                                           n_features=n_features)
+
+    if model_type == 'BinaryClassification':
+        features, target = make_classification(n_samples=n_samples,
+                                               n_features=n_features,
+                                               n_classes=2)
+
+    return features, target
+
+
+class BaseModel:
+
+    """
+    Base class for models
+
+    Parameters:
+    ----------
+    model_name : str, name of the model
+    model_type : str, type of the model ('Regression' | 'BinaryClassification')
+    features : np.array(), data for model (if None generates automatically)
+    target : np.array(), target vector for model (if None generates automatically)
+
+    """
+    global base_models
+
+    def __init__(self, model_name, model_type, features=None, target=None):
+
+        self.name = model_name
+        self.model_type = model_type
+
+        self.model = None
+        self.fitted_model = None
+
+        if model_type not in base_models:
+            raise ValueError(f'Unrecognized model type. Available types: {list(base_models.keys())}')
+
+        if (not features) or (not target):
+            self.features, self.target = make_data(model_type)
+        else:
+            self.features, self.target = features, target
+
+        self.model_params = None
+        self.is_fitted = False
+
+    def fit(self, model_params):
+        """
+        Fits model
+
+        Parameters:
+        ----------
+        model_params : dict, input params
+        """
+
+        self.model = base_models[self.model_type]()
+
+        if model_params:
+            self.model_params = model_params
+            check_params(self.model, self.model_params, self.model_type)
+            self.model = self.model.set_params(**self.model_params)
+
+        self.fitted_model = self.model.fit(self.features, self.target)
+        self.is_fitted = True
+
+    def predict(self, data=None):
+        """
+        Get model predict
+
+        Parameters:
+        ----------
+        data : np.array, data to predict (if None predicts on self.features)
+        """
+
+        if not data:
+            data = self.features
+
+        if not self.is_fitted:
+            raise ValueError('Model is not fitted. Try .fit() method :)')
+
+        predict = self.fitted_model.predict(data)
+
+        return predict
