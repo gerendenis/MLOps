@@ -1,7 +1,7 @@
 import flask
 from flask_restx import Api, Resource, fields
 from werkzeug.middleware.proxy_fix import ProxyFix
-from ModelConstructor import ModelConstractor
+from ModelStorage import ModelStorage
 import json
 
 app = flask.Flask(__name__)
@@ -9,26 +9,40 @@ app.wsgi_app = ProxyFix(app.wsgi_app)
 api = Api(app, version='1.0', title='MlFlow KEKW',
           description='Тык-пык учим модельки')
 
-all_models = ModelConstractor()
+all_models = ModelStorage()
 
 set_params = api.model('Set', {
-    'model_name': fields.String(description='Model name',
-                                example='Model 1'),
-    'model_type': fields.String(description='Model type (Regression | BinaryClassification)',
-                                example='Regression')})
+    'model_id': fields.Integer(required=True,
+                               description='Model id',
+                               example=1),
+    'model_type': fields.String(required=True,
+                                description='Model type (Regression | BinaryClassification)',
+                                example='Regression'),
+    'model_comment': fields.String(required=False,
+                                   description='Model type (Regression | BinaryClassification)',
+                                   example='Comment')})
 
 fit_params = api.model('Fit', {
-    'model_name': fields.String(description='Model name', example='Model 1'),
-    'model_params': fields.Arbitrary(description='Model params', example=json.dumps({'max_depth': 3})),
-    'refit': fields.Boolean(description='Refit if exists', example=bool(True))})
+    'model_id': fields.Integer(required=True, description='Model id', example=1),
+    'model_params': fields.Arbitrary(required=False, description='Model params', example=json.dumps({'max_depth': 3})),
+    'refit': fields.Boolean(required=False, description='Refit if exists', example=bool(True)),
+
+    'data_path': fields.String(required=False, description='Path to data file'),
+    'features_list': fields.String(required=False, description='Features for fit method'),
+    'target_variable': fields.String(required=False, description='Target variable label'),
+})
 
 predict_params = api.model('Predict', {
-    'model_name': fields.String(description='Model name')})
+    'model_id': fields.Integer(description='Model id', example=1),
+})
 
 delete_params = api.model('Delete', {
-    'model_name': fields.String(description='Model name')})
+    'model_id': fields.Integer(description='Model id', example=1),
+})
 
 ns = api.namespace('Models', description='Тут должно что-то происходить')
+
+
 @ns.route('/models_list')
 class ModelsList(Resource):
     def get(self):
@@ -58,8 +72,8 @@ class PredictModel(Resource):
     def get(self):
         """Get model predict"""
         return json.dumps({"predict": all_models.predict_model(**api.payload)
-                                                .astype(float)
-                                                .tolist()})
+                          .astype(float)
+                          .tolist()})
 
 
 @ns.route('/model/delete')
