@@ -51,7 +51,7 @@ class BaseModel:
         }
 
         if model_type not in self.base_models:
-            raise ValueError(f'Unrecognized model type. Available types: {list(self.base_models.keys())}')
+            raise TypeError(f'Unrecognized model type. Available types: {list(self.base_models.keys())}')
 
         self.model_params = None
         self.is_fitted = False
@@ -75,7 +75,7 @@ class BaseModel:
             if param not in all_params:
                 bad_params.append(param)
         if len(bad_params) != 0:
-            raise ValueError(f'Unrecognized params for model {model_type}: {bad_params}')
+            raise TypeError(f'Unrecognized params for model {model_type}: {bad_params}')
 
     def fit(self, data=None, target=None, model_params=None, fit_example=True):
         """
