@@ -10,7 +10,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app)
 api = Api(app, version='1.0', title='MlFlow KEKW',
           description='Тык-пык учим модельки',
           )
-all_models = ModelStorage()
+
 
 set_params = api.model('Set', {
     'model_id': fields.Integer(required=True,
@@ -21,7 +21,10 @@ set_params = api.model('Set', {
                                 example='Regression'),
     'model_comment': fields.String(required=False,
                                    description='Model type (Regression | BinaryClassification)',
-                                   example='Comment')})
+                                   example='Comment'),
+    'new_model': fields.Boolean(required=False, description='new_model', example=bool(True)),
+    'rewrite_model': fields.Boolean(required=False, description='rewrite if exists', example=bool(False))})
+
 
 fit_params = api.model('Fit', {
     'model_id': fields.Integer(required=True, description='Model id', example=1),
@@ -39,6 +42,9 @@ predict_params = api.model('Predict', {
 
 })
 
+models_list_params = api.model('ModelsList', {
+    'loaded': fields.Boolean(required=False)})
+
 delete_params = api.model('Delete', {
     'model_id': fields.Integer(description='Model id', example=1),
 })
@@ -48,6 +54,11 @@ ns = api.namespace('Models', description='Тут должно что-то про
 
 @app.errorhandler(Exception)
 def handle_error(error):
+    status_code = 500
+
+    if status_code in dir(error):
+        status_code = error.status_code
+
     message = [str(x) for x in error.args]
     response = {
         'error': {
@@ -55,14 +66,18 @@ def handle_error(error):
             'message': message
         }
     }
-    return jsonify(response), 500
+    return jsonify(response), status_code
 
 
-@ns.route('/models_list')
+all_models = ModelStorage('./models')
+
+
+@ns.route('/models_list/get')
 class ModelsList(Resource):
+    @ns.expect(models_list_params)
     def get(self):
         """List all current models"""
-        return jsonify(all_models.get_current_models())
+        return jsonify(all_models.get_current_models(**api.payload))
 
 
 @ns.route('/model/set')

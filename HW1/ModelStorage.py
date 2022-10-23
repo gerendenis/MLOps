@@ -1,31 +1,71 @@
 from BaseModel import BaseModel
 import pandas as pd
+import pickle
+import os
 
 
 class ModelStorage(object):
     """
     Class for operations with models
 
+    save_path : str, Required, path to save models
+
     """
 
-    def __init__(self):
+    def __init__(self, save_path):
         self.current_models = {}
 
-    def set_model(self, model_id, model_type, model_comment=None):
+        if not os.path.exists(save_path):
+            raise ValueError('Invalid save_path for models.')
+
+        self.save_path = save_path
+
+    def set_model(self, model_id, model_type=None, model_comment=None, new_model=True, rewrite_model=False):
         """
         Generates model object
 
         Parameters:
         ----------
         model_id : int, Required, id of the model
-        model_type : str, Required, type of the model ('Regression' | 'BinaryClassification')
+        new_model : bool, Optional, fit new model or load old model
+        model_type : str, Optional, type of the model ('Regression' | 'BinaryClassification').
+                        Required if new_model = True
         model_comment : str, Optional, comment
+        rewrite_model : bool, Optional, rewrite old model with model_id if exists
+
         """
 
-        model = BaseModel(model_type)
-        self.current_models[model_id] = {'model': model,
-                                         'model_type': model_type,
-                                         'model_comment': model_comment}
+        model_path = f'{self.save_path}/model_{model_id}'
+
+        if new_model:
+
+            if not rewrite_model and os.path.exists(f'{self.save_path}/model_{model_id}'):
+                raise ValueError(f'Model with id {model_id} exists. To rewrite set "rewrite_model=True"')
+
+            if not model_type:
+                raise ValueError(f'Provide model_type for new_model')
+
+            model = BaseModel(model_type)
+            self.current_models[model_id] = {'model': model,
+                                             'model_type': model_type,
+                                             'model_comment': model_comment}
+
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
+
+        if not new_model:
+            if not os.path.exists(model_path):
+                raise ValueError(f'Model with id {model_id} doesnt exist.')
+
+            with open(model_path, 'rb') as f:
+
+                model = pickle.load(f)
+                model_type = model.model_type
+                model_comment = model.model_comment
+
+                self.current_models[model_id] = {'model': model,
+                                                 'model_type': model_type,
+                                                 'model_comment': model_comment}
 
     def fit_model(self, model_id,
                   model_params=None,
@@ -47,7 +87,7 @@ class ModelStorage(object):
         """
 
         if model_id not in self.current_models:
-            raise ValueError(f'Model with id {model_id} not in models.')
+            raise ValueError(f'Model with id {model_id} not in loaded models.')
         else:
             model = self.current_models[model_id]['model']
 
@@ -65,6 +105,10 @@ class ModelStorage(object):
 
         self.current_models[model_id]['model'] = model
 
+        model_path = f'{self.save_path}/model_{model_id}'
+        with open(model_path, 'wb') as f:
+            pickle.dump(model, f)
+
     def predict_model(self, model_id, data=None):
         """
         Get model predict
@@ -76,12 +120,11 @@ class ModelStorage(object):
         """
 
         if model_id not in self.current_models:
-            raise ValueError(f'Model with id {model_id} not in models.')
+            raise ValueError(f'Model with id {model_id} not in loaded models.')
         else:
             model = self.current_models[model_id]['model']
 
         predict = model.predict(data)
-
         return predict
 
     def delete_model(self, model_id):
@@ -93,34 +136,59 @@ class ModelStorage(object):
         model_id : int, Required, id of the model
         """
 
-        if model_id not in self.current_models:
+        model_path = f'{self.save_path}/model_{model_id}'
+
+        if not os.path.exists(model_path):
             raise ValueError(f'Model with id {model_id} not in models.')
+
+        if model_id in self.current_models:
+            self.current_models.pop(model_id)
+
+        os.remove(model_path)
+
+    def get_current_models(self, loaded=True):
+        """
+        Returns all saved models from save_path
+
+        loaded: bool, Optional, show all models or only loaded
+        """
+
+        if loaded:
+            models_info = {}
+
+            for model_id in self.current_models:
+
+                model_type = self.current_models[model_id]['model_type']
+                is_fitted = self.current_models[model_id]['model'].is_fitted
+                comment = self.current_models[model_id]['model_comment']
+
+                if not comment:
+                    comment = '-'
+
+                models_info[model_id] = f'Model_type: {model_type}, is_fitted : {is_fitted}, comment : {comment}'
+
+            return models_info
+
         else:
-            current_models = self.current_models
-            current_models.pop(model_id)
 
-            self.current_models = current_models
+            all_models = [f for f in os.listdir(self.save_path) if
+                          os.path.isfile(os.path.join(self.save_path, f))]
 
-    def get_current_models(self):
-        """
-        Returns current models dict
+            models_info = {}
 
-        """
+            for model_id in all_models:
+                model_path = f'{self.save_path}/model_{model_id}'
 
-        models_info = {}
+                with open(model_path, 'rb') as f:
+                    model = pickle.load(f)
 
-        for model_id in self.current_models:
+                    model_type = model.model_type
+                    is_fitted = model.is_fitted
+                    comment = model.model_comment
 
-            model_type = self.current_models[model_id]['model_type']
-            is_fitted = self.current_models[model_id]['model'].is_fitted
-            comment = self.current_models[model_id]['model_comment']
+                    if not comment:
+                        comment = '-'
 
-            if not comment:
-                comment = '-'
+                    models_info[model_id] = f'Model_type: {model_type}, is_fitted : {is_fitted}, comment : {comment}'
 
-            models_info[model_id] = f'Model_type: {model_type}, is_fitted : {is_fitted}, comment : {comment}'
-
-        return models_info
-
-# features : np.array(), data for model (if None generates automatically)
-# target : np.array(), target vector for model (if None generates automatically)
+            return models_info

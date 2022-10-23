@@ -38,7 +38,7 @@ class BaseModel:
 
     """
 
-    def __init__(self, model_type):
+    def __init__(self, model_type, model_comment=None):
 
         self.model_type = model_type
 
@@ -55,6 +55,7 @@ class BaseModel:
 
         self.model_params = None
         self.is_fitted = False
+        self.model_comment = model_comment
 
     @staticmethod
     def check_params(model, model_params, model_type):
