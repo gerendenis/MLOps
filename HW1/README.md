@@ -1,4 +1,4 @@
-# MLOps
+# MLOps HW1
 ФТИАД MLOps 2022
 
 В файле examples/ApiUsageExample показаны примеры обращений к Api через requests.
