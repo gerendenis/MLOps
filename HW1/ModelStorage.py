@@ -173,12 +173,10 @@ class ModelStorage(object):
 
             all_models = [f for f in os.listdir(self.save_path) if
                           os.path.isfile(os.path.join(self.save_path, f))]
-            print(all_models)
             models_info = {}
 
             for file in all_models:
                 model_path = f'{self.save_path}/{file}'
-                print(model_path)
                 with open(model_path, 'rb') as f:
                     model = pickle.load(f)
 
