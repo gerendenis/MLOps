@@ -1,10 +1,16 @@
-version: '3.4'
 
-services:
-  hw1:
-    image: hw1
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-    ports:
-      - 5000:5000
+version: '3.8'
+services: 
+    api-service:
+        build: ./MyApp/
+        volumes: 
+            - ./MyApp/:/app/
+        ports: 
+            - 5000:5000
+        environment: 
+            PORT: 5000
+            FLASK_DEBUG: 1
+    adminer:
+        image: 12-api-service
+        restart: always
+        container_name: api-service-1
