@@ -4,12 +4,24 @@ from flask_restx import Api, Resource, fields
 from werkzeug.middleware.proxy_fix import ProxyFix
 from ModelStorage import ModelStorage
 import json
+from sqlalchemy import create_engine
+import pandas as pd
 
 app = flask.Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app)
 api = Api(app, version='1.0', title='MlFlow KEKW',
           description='Тык-пык учим модельки',
           )
+
+# проверяем, что есть коннект к бд
+def create_db():
+    engine = create_engine('postgresql://postgres:postgres@db:5432/postgres')
+    df = pd.DataFrame([[1, 10, 1],
+                   [2, 20, 1],
+                   [3, 30, 1]], columns=['target', 'feature', 'const'])
+    df.to_sql('df_test', con=engine, if_exists='replace')
+
+create_db()
 
 
 set_params = api.model('Set', {
